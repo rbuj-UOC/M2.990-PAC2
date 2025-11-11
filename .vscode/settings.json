@@ -1,0 +1,46 @@
+{
+  "cSpell.language": "ca,en",
+  "cSpell.words": [
+    "colnames",
+    "corrplot",
+    "d'homoscedasticitat",
+    "dplyr",
+    "ggplot",
+    "GINI",
+    "grepl",
+    "hjust",
+    "httpgd",
+    "inferencial",
+    "kable",
+    "knitr",
+    "lapply",
+    "Leste",
+    "ncol",
+    "pandoc",
+    "Preprocés",
+    "readr",
+    "readxl",
+    "rmarkdown",
+    "sapply",
+    "strsplit",
+    "summarise",
+    "tidyr",
+    "trimws"
+  ],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.markdownlint": "always"
+  },
+  "editor.rulers": [
+    80
+  ],
+  "editor.formatOnSave": true,
+  "github.copilot.enable": {
+    "json": true,
+    "markdown": true,
+    "rmd": true,
+    "r": true
+  },
+  "[markdown]": {
+    "editor.formatOnPaste": true
+  }
+}

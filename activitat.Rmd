@@ -1,0 +1,1159 @@
+---
+title: Activitat 2 - Tests d’hipòtesis
+author: "Robert Buj"
+date: "28/11/2025"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+toc-title: "Taula de continguts"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, error = FALSE, message = FALSE)
+library(readr)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(stats)
+library(knitr)
+library(kableExtra)
+library(tidyr)
+```
+
+```{r, include=FALSE}
+# Llegeix el fitxer WorldSustainabilityDataset.csv
+ds <- read_csv("data/WorldSustainabilityDataset.csv")
+# Canvia el nom de les columnes per facilitar la seva manipulació
+ds <- ds %>%
+  # Reordena les variables
+  select(
+    `Country Name`,
+    `Country Code`,
+    Continent,
+    Year,
+    `Income Classification (World Bank Definition)`,
+    `World Regions (UN SDG Definition)`,
+    `Regime Type (RoW Measure Definition)`,
+    everything()
+  ) %>%
+  # Canvia els noms de les variables
+  rename(
+    Country = `Country Name`,
+    CountryCode = `Country Code`,
+    Income = `Income Classification (World Bank Definition)`,
+    Regime = `Regime Type (RoW Measure Definition)`,
+    Region = `World Regions (UN SDG Definition)`
+  )
+# Reanomena les variables d'indicadors amb la seva descripció breu
+colnames(ds)[8:ncol(ds)] <- sapply(
+  strsplit(colnames(ds)[8:ncol(ds)], " - "),
+  function(x) trimws(x[2])
+)
+# Ordena les variables d'indicadors alfabèticament
+ds <- ds %>%
+  select(
+    1:7,
+    sort(colnames(ds)[8:ncol(ds)])
+  )
+```
+
+
+# Esperança de vida
+
+En primer lloc, i atenent a l’ODS 3 (garantir una vida sana i promoure el
+benestar per a tothom a totes les edats, assegurant així el desenvolupament
+sostenible), analitzarem l’esperança de vida dels diferents països.
+
+En concret, ens preguntem:
+
+PR1: L’esperança de vida és més alta als països amb un nivell d’ingressos elevat
+que a la resta?
+
+Per donar resposta a aquesta pregunta, farem servir una anàlisi descriptiva i
+inferencial.
+
+Seguiu els passos que s’indiquen a continuació.
+
+## Anàlisi descriptiva
+
+Abans de realitzar l’anàlisi inferencial, efectuarem una anàlisi descriptiva
+d’aquesta variable. Mostreu un gràfic comparant l’esperança de vida segons el
+nivell d’ingressos. Podeu usar un gràfic de tipus boxplot.
+
+Feu servir les variables: SP.DYN.LE00.IN (LE), Income i Region. Per fer el codi
+més comprensible, podeu reanomenar la variable d’esperança de vida com a LE
+(Life Expectancy).
+
+```{r}
+# Canvia el nom de la variable d’esperança de vida
+ds <- ds %>%
+  rename(LE = SP.DYN.LE00.IN)
+```
+
+**Resposta:**
+
+```{r}
+# Conjunt de dades temporal amb només les dades de les variables d’interès sense
+# valors NA, ordenant els nivells de la variable Income
+ds_income <- ds %>%
+  filter(!is.na(LE), !is.na(Income), Year == 2018) %>%
+  mutate(Income = factor(Income, levels = c(
+    "Low income",
+    "Lower-middle income",
+    "Upper-middle income",
+    "High income"
+  ))) %>%
+  select(LE, Income)
+# Mostra un boxplot de l’esperança de vida segons el nivell d’ingressos
+ggplot(ds_income, aes(x = Income, y = LE)) +
+  geom_boxplot(fill = "lightgreen", color = "darkgreen") +
+  labs(
+    title = "Esperança de vida segons el nivell d'ingressos (2018)",
+    x = "Nivell d'ingressos",
+    y = "Esperança de vida (LE)"
+  ) +
+  theme_minimal()
+# Conjunt de dades temporal amb només les dades de les variables d’interès sense
+# valors NA
+ds_region <- ds %>%
+  filter(!is.na(LE), !is.na(Region), Year == 2018) %>%
+  select(LE, Region)
+# Mostra un boxplot de l’esperança de vida segons la regió
+ggplot(ds_region, aes(x = Region, y = LE)) +
+  geom_boxplot(fill = "burlywood", color = "burlywood4") +
+  labs(
+    title = "Esperança de vida segons la regió (2018)",
+    x = "Regió",
+    y = "Esperança de vida (LE)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+La distribució de l’esperança de vida segons el nivell d’ingressos és
+relativament homogènia entre els diferents grups, en contrast amb la distribució
+per regions, que mostra una major heterogeneïtat. Els països amb ingressos més
+alts presenten valors mitjans d’esperança de vida més elevats i una dispersió
+menor, fet que reflecteix una distribució més uniforme. Per contra, a mesura que
+disminueix el nivell d’ingressos, l’esperança de vida tendeix a reduir-se i la
+variabilitat augmenta, evidenciant una major heterogeneïtat.
+
+L’Àfrica subsahariana és la regió amb l’esperança de vida més baixa en
+comparació amb la resta del món. Gairebé totes les regions mostren distribucions
+força similars; tanmateix, n’hi ha dues on la desviació estàndard és més
+elevada, la qual cosa suggereix que en aquestes regions conviuen països amb
+diversos nivells d’ingressos.
+
+```{r, include=FALSE}
+# Elimina l’objecte temporal ds_region, ja que no s’utilitzarà en l’anàlisi
+# inferencial
+rm(ds_region)
+```
+
+## Hipòtesis
+
+Per a l’anàlisi inferencial, compareu els països amb ingressos alts (“High
+income”) amb la resta. Feu servir com a mostra l’últim any del conjunt de dades
+(2018).
+
+Escriviu les hipòtesis estadístiques a partir de la pregunta de recerca.
+
+**Resposta:**
+
+- Hipòtesis nul·la (H~0~):  $\mu_1 = \mu_2$: No hi ha diferència en l’esperança
+de vida entre els països amb ingressos alts i la resta.
+- Hipòtesis alternativa (H~1~): $\mu_1 > \mu_2$ L’esperança de vida és més alta
+als països amb ingressos alts que a la resta.
+
+## Test
+
+Quin tipus de test estadístic és apropiat per donar resposta a la pregunta?
+Justifiqueu la vostra elecció.
+
+**Resposta:**
+
+Test unilateral de dues mostres independents sobre la mitjana de l’esperança
+de vida de països amb ingressos alts i la resta, amb variàncies desconegudes
+diferents.
+
+Es tracta d’un test de comparació de mitjanes entre dos grups independents
+(països amb ingressos alts i països amb altres nivells d’ingressos). És
+unilateral perquè l’hipòtesi alternativa estableix que la mitjana d’un grup és
+major que l’altra. Les variàncies són desconegudes perquè no es disposa
+d’informació prèvia sobre elles.
+
+```{r}
+# test d'homoscedasticitat
+var.test(
+  ds_income$LE[ds_income$Income == "High income"],
+  ds_income$LE[ds_income$Income != "High income"]
+)
+```
+
+A més, segons el test d'homoscedasticitat les variances no són iguals, valor
+*p* obtingut és menor que el nivell de significança i la relació de les
+variàncies és diferent de 1 (aproximadament 1/4).
+
+## Aplicació del test
+
+Feu servir una llibreria de R per aplicar el test seleccionat.
+
+*Nota:* descarteu temporalment els valors absents de la variable esperança de
+vida, sense eliminar-los del conjunt original, per tal de preservar la resta
+d’informació. Podeu crear un conjunt de dades que contingui només l’any 2018 i
+els valors existents de l’esperança de vida i dels ingressos.
+
+**Resposta:**
+
+```{r}
+# Aplica el test t de Student per a mostres independents amb variàncies
+# desconegudes iguals
+t.test(
+  ds_income$LE[ds_income$Income == "High income"],
+  ds_income$LE[ds_income$Income != "High income"],
+  alternative = "greater",
+  var.equal = TRUE
+)
+# Aplica el test t de Student per a mostres independents amb variàncies
+# desconegudes diferents
+t.test(
+  ds_income$LE[ds_income$Income == "High income"],
+  ds_income$LE[ds_income$Income != "High income"],
+  alternative = "greater",
+  var.equal = FALSE
+)
+```
+
+En ambdos casos el valor *p* obtingut és menor que el nivell de significança i,
+per tant, es rebutja l’hipòtesi nul·la H~0~ en favor de l’hipòtesi alternativa
+H~1~.
+
+## Desenvolupament
+
+Desenvolupeu un codi propi que implementi la prova utilitzada en l’apartat
+anterior i comproveu que obteniu el mateix resultat. Podeu fer servir les
+funcions `qnorm`, `pnorm`, `qt`, `pt`, etc.
+
+**Resposta:**
+
+La funció següent implementa el test de dues mostres independents sobre la
+mitjana amb variàncies desconegudes diferents:
+
+```{r}
+TEST_MEAN <- function(x1, x2, lc = 95, alternative = "greater") {
+  # Calcula les mitjanes i desviacions estàndard de les dues mostres
+  mean_x1 <- mean(x1)
+  mean_x2 <- mean(x2)
+  sd_x1 <- sd(x1)
+  sd_x2 <- sd(x2)
+  n_x1 <- length(x1)
+  n_x2 <- length(x2)
+  # Calcula l'estadístic de contrast t (fórmula 14)
+  t_stat <- (mean_x1 - mean_x2) /
+    sqrt((sd_x1^2 / n_x1) + (sd_x2^2 / n_x2))
+  # Calcula els graus de llibertat (fórmula 15)
+  df_value <- ((sd_x1^2 / n_x1) + (sd_x2^2 / n_x2))^2 /
+    (((sd_x1^2 / n_x1)^2 / (n_x1 - 1)) +
+      ((sd_x2^2 / n_x2)^2 / (n_x2 - 1)))
+  # Calcula el valor p segons l'alternativa seleccionada
+  if (alternative == "greater") {
+    p_value <- 1 - pt(t_stat, df = df_value)
+  } else if (alternative == "less") {
+    p_value <- pt(t_stat, df = df_value)
+  } else {
+    p_value <- 2 * min(pt(t_stat, df = df_value), 1 - pt(t_stat, df = df_value))
+  }
+  # Retorna els resultats
+  return(list(
+    mean_x1 = mean_x1,
+    mean_x2 = mean_x2,
+    t = t_stat,
+    df = df_value,
+    p_value = p_value
+  ))
+}
+```
+
+## Resultats
+
+Amb la vostra funció, mostreu els resultats incloent-hi les mitjanes, el valor
+observat, l’estadístic de contrast i el valor *p*.
+
+**Resposta:**
+
+```{r}
+# Aplica la funció TEST a les dues mostres
+resultats <- TEST_MEAN(
+  ds_income$LE[ds_income$Income == "High income"],
+  ds_income$LE[ds_income$Income != "High income"],
+  alternative = "greater"
+)
+resultats
+```
+
+## Interpretació
+
+A partir dels resultats anteriors, doneu resposta a la pregunta de recerca
+plantejada.
+
+**Resposta:**
+
+Si comparem els resultats obtinguts amb la funció pròpia i la funció de R,
+observem que són coherents. Hi ha evidència suficient, $p < 0,05$, per rebutjar
+la hipòtesi nul·la a favor de l’alternativa, per tant, l’esperança de vida és
+més alta als països amb ingressos alts en comparació amb els països amb altres
+nivells d’ingressos, com es va observar en l’anàlisi descriptiva.
+
+```{r, include=FALSE}
+# Elimina els objectes temporals
+rm(ds_income, resultats, TEST_MEAN)
+```
+
+# Desigualtat al llarg del temps
+
+A continuació, analitzarem com ha evolucionat la desigualtat econòmica al llarg
+dels anys. Aquest apartat s’alinea amb l’ODS 10 (reduir la desigualtat dins dels
+països i entre ells).
+
+Ens centrarem en la següent pregunta de recerca:
+
+PR2: La desigualtat es redueix en un període de 10 anys?
+
+Per donar-hi resposta, usarem les dades del darrer any, 2018, i com a any
+inicial, el 2008. Considereu primer tots els països del món, i després només els
+països de la regió “Europe and Northern America”. Per a fer el codi més
+comprensible, reanomeneu la variable SI.POV.GINI com a GINI. Seguiu els passos
+que s’indiquen a continuació.
+
+```{r}
+# Canvia el nom de la variable d’índex GINI
+ds <- ds %>%
+  rename(GINI = SI.POV.GINI)
+```
+
+## Anàlisi descriptiva
+
+Per a analitzar visualment la resposta, mostreu en un gràfic la desigualtat dels
+països a l’any 2008 i a l’any 2018. Podeu usar un gràfic de tipus boxplot.
+Mostreu dos gràfics: un incloent tots els països del món i el segon, només amb
+els països de la regió “Europe and Northern America”.
+
+Així mateix, mostreu una taula amb els cinc països amb més desigualtat i els
+cinc països amb menys desigualtat (a tot el món i considerant només la regió
+“Europe and Northern America”).
+
+**Resposta:**
+
+```{r}
+# Conjunt de dades temporal amb només les dades de les variables d’interès sense
+# valors NA
+ds_world <- ds %>%
+  filter(!is.na(GINI), Year %in% c(2008, 2018)) %>%
+  select(GINI, Year)
+# Mostra un boxplot de l’índex GINI segons l’any
+ggplot(ds_world, aes(x = factor(Year), y = GINI)) +
+  # tow red colors
+  geom_boxplot(fill = "lightcoral", color = "darkred") +
+  labs(
+    title = "Índex GINI incloent tots els països del món (2008 vs 2018)",
+    x = "Any",
+    y = "Índex GINI"
+  ) +
+  theme_minimal()
+# Conjunt de dades temporal amb només les dades de les variables d’interès
+# sense valors NA per a la regió "Europe and Northern America"
+ds_region <- ds %>%
+  filter(
+    !is.na(GINI), Year %in% c(2008, 2018),
+    Region == "Europe and Northern America"
+  ) %>%
+  select(GINI, Year)
+# Mostra un boxplot de l’índex GINI segons l’any per a la regió "Europe and
+# Northern America"
+ggplot(ds_region, aes(x = factor(Year), y = GINI)) +
+  geom_boxplot(fill = "lightblue", color = "darkblue") +
+  labs(
+    title = "Índex GINI als països d'Europa i Amèrica del Nord (2008 vs 2018)",
+    x = "Any",
+    y = "Índex GINI"
+  ) +
+  theme_minimal()
+```
+
+```{r, include=FALSE}
+# Elimina els objectes temporals
+rm(ds_world, ds_region)
+```
+
+```{r}
+# Conjunt de dades temporal amb només les dades de les variables d’interès sense
+# valors NA
+ds_world <- ds %>%
+  filter(!is.na(GINI), Year == 2008) %>%
+  select(Country, GINI) %>%
+  arrange(desc(GINI))
+ds_world <- rbind(
+  ds_world %>%
+    slice_head(n = 5),
+  ds_world %>%
+    slice_tail(n = 5)
+)
+# Mostra els cinc paisos amb index GINI més alt i els cinc amb més baix per a
+# l'any 2008 en una sola taula
+kable(
+  ds_world,
+  digits = 2,
+  decimal.mark = ",",
+  caption = "Països del món amb més i menys desigualtat (índex GINI) (2008)"
+) %>%
+  kable_styling(
+    "striped",
+    latex_options = c("striped", "scale_down", "repeat_header"),
+    position = "center",
+    full_width = FALSE
+  ) %>%
+  pack_rows("Països amb més desigualtat", 1, 5) %>%
+  pack_rows("Països amb menys desigualtat", 6, 10)
+```
+
+```{r, include=FALSE}
+# Elimina els objectes temporals
+rm(ds_world, top_5_gini_world, bottom_5_gini_world)
+```
+
+```{r}
+# Conjunt de dades temporal amb només les dades de les variables d’interès
+# sense valors NA per a l’any 2008
+ds_world_2008 <- ds %>%
+  filter(!is.na(GINI), Year == 2008) %>%
+  select(Country, GINI) %>%
+  arrange(desc(GINI))
+ds_world_2008 <- rbind(
+  ds_world_2008 %>%
+    slice_head(n = 5),
+  ds_world_2008 %>%
+    slice_tail(n = 5)
+)
+# Afegeix un index als països per a poder fer la unió al conjunt de dades final
+ds_world_2008 <- ds_world_2008 %>%
+  mutate(Index = row_number())
+# Conjunt de dades temporal amb només les dades de les variables d’interès
+# sense valors NA per a l’any 2018
+ds_world_2018 <- ds %>%
+  filter(!is.na(GINI), Year == 2018) %>%
+  select(Country, GINI) %>%
+  arrange(desc(GINI))
+ds_world_2018 <- rbind(
+  ds_world_2018 %>%
+    slice_head(n = 5),
+  ds_world_2018 %>%
+    slice_tail(n = 5)
+)
+# Afegeix un index als països per a poder fer la unió al conjunt de dades final
+ds_world_2018 <- ds_world_2018 %>%
+  mutate(Index = row_number())
+# Uneix els dos conjunts de dades per a mostrar-los en una sola taula
+ds_world <- ds_world_2008 %>%
+  inner_join(ds_world_2018, by = "Index", suffix = c("_2008", "_2018")) %>%
+  select(
+    Country_2018,
+    GINI_2008,
+    Country_2008,
+    GINI_2018
+  )
+# Mostra els cinc paisos amb index GINI més alt i els cinc amb més baix per a
+# l'any 2018 en una sola taula
+kable(
+  ds_world,
+  digits = 2,
+  decimal.mark = ",",
+  caption = "Països del món amb més i menys desigualtat (índex GINI)
+  (any 2008 vs 2018)",
+  col.names = c(
+    "País",
+    "Índex GINI",
+    "País",
+    "Índex GINI"
+  )
+) %>%
+  add_header_above(
+    c("2008" = 2, "2018" = 2)
+  ) %>%
+  kable_styling(
+    "striped",
+    latex_options = c("striped", "scale_down", "repeat_header"),
+    position = "center",
+    full_width = FALSE
+  ) %>%
+  pack_rows("Països amb més desigualtat", 1, 5) %>%
+  pack_rows("Països amb menys desigualtat", 6, 10)
+```
+
+```{r, include=FALSE}
+# Elimina els objectes temporals
+rm(ds_world, ds_world_2008, ds_world_2018)
+```
+
+```{r}
+# Conjunt de dades temporal amb només les dades de les variables d’interès
+# sense valors NA per a l’any 2008
+ds_region_2008 <- ds %>%
+  filter(
+    !is.na(GINI), Year == 2008,
+    Region == "Europe and Northern America"
+  ) %>%
+  select(Country, GINI) %>%
+  arrange(desc(GINI))
+ds_region_2008 <- rbind(
+  ds_region_2008 %>%
+    slice_head(n = 5),
+  ds_region_2008 %>%
+    slice_tail(n = 5)
+)
+# Afegeix un index als països per a poder fer la unió al conjunt de dades final
+ds_region_2008 <- ds_region_2008 %>%
+  mutate(Index = row_number())
+# Conjunt de dades temporal amb només les dades de les variables d’interès
+# sense valors NA per a l’any 2018
+ds_region_2018 <- ds %>%
+  filter(
+    !is.na(GINI), Year == 2018,
+    Region == "Europe and Northern America"
+  ) %>%
+  select(Country, GINI) %>%
+  arrange(desc(GINI))
+ds_region_2018 <- rbind(
+  ds_region_2018 %>%
+    slice_head(n = 5),
+  ds_region_2018 %>%
+    slice_tail(n = 5)
+)
+# Afegeix un index als països per a poder fer la unió al conjunt de dades final
+ds_region_2018 <- ds_region_2018 %>%
+  mutate(Index = row_number())
+# Uneix els dos conjunts de dades per a mostrar-los en una sola taula
+ds_region <- ds_region_2008 %>%
+  inner_join(ds_region_2018, by = "Index", suffix = c("_2008", "_2018")) %>%
+  select(
+    Country_2018,
+    GINI_2008,
+    Country_2008,
+    GINI_2018
+  )
+# Mostra els cinc paisos amb index GINI més alt i els cinc amb més baix per a
+# l'any 2018 en una sola taula
+kable(
+  ds_region,
+  digits = 2,
+  decimal.mark = ",",
+  caption = "Països de la regió Europe and Northern America amb més i menys
+  desigualtat (índex GINI) (any 2008 vs 2018)",
+  col.names = c(
+    "País",
+    "Índex GINI",
+    "País",
+    "Índex GINI"
+  )
+) %>%
+  add_header_above(
+    c("2008" = 2, "2018" = 2)
+  ) %>%
+  kable_styling(
+    "striped",
+    latex_options = c("striped", "scale_down", "repeat_header"),
+    position = "center",
+    full_width = FALSE
+  ) %>%
+  pack_rows("Països amb més desigualtat", 1, 5) %>%
+  pack_rows("Països amb menys desigualtat", 6, 10)
+```
+
+## Hipòtesis
+
+Escriviu les hipòtesis estadístiques corresponents a la pregunta de recerca.
+
+**Resposta:**
+
+- Hipòtesis nul·la (H~0~): $\mu_{d} = 0$: No hi ha disminució de la desigualtat
+entre els anys 2008 i 2018.
+- Hipòtesis alternativa (H~1~): $\mu_{d} < 0$: Hi ha una disminució de la
+desigualtat entre els anys 2008 i 2018.
+
+## Test
+
+Quin tipus de test estadístic és apropiat per donar resposta a la pregunta?
+Justifiqueu la vostra elecció.
+
+**Resposta:**
+
+Test unilateral de dues mostres aparellades sobre la mitjana de l’índex GINI
+dels països de la regió "Europe and Northern America" en els anys 2008 i 2018.
+
+Es tracta d’un test de comparació de mitjanes entre dues mostres relacionades
+(les mitjanes de l'índex GINI de les regions en dos moments diferents). La
+comparació es realitza mitjançant un test t de mostres aparellades. (p. 41)
+És unilateral perquè l’hipòtesi alternativa estableix que la mitjana de la
+desigualtat en el 2018 és menor que en el 2008.
+
+## Aplicació del test
+
+Feu servir una llibreria de R per aplicar el test seleccionat.
+
+*Nota:* copieu en un conjunt de dades temporal només les dades que requereixi
+aquesta anàlisi i elimineu els registres que continguin valors perduts en les
+variables d’interès.
+
+**Resposta:**
+
+```{r}
+# Conjunt de dades temporal amb només les dades de les variables d’interès sense
+# valors NA
+ds_world <- ds %>%
+  filter(
+    !is.na(GINI), Year %in% c(2008, 2018)
+  ) %>%
+  select(Country, GINI, Year) %>%
+  pivot_wider(names_from = Year, values_from = GINI) %>%
+  drop_na()
+# Aplica el test t de mostres aparellades
+t.test(
+  ds_world$`2008`,
+  ds_world$`2018`,
+  alternative = "less",
+  paired = TRUE
+)
+```
+
+## Desenvolupament
+
+Desenvolupeu un codi propi que implementi la prova utilitzada en l’apartat
+anterior i comproveu que obteniu el mateix resultat. Podeu fer servir les
+funcions `qnorm`, `pnorm`, `qt`, `pt`, etc.
+
+**Resposta:**
+
+```{r}
+# Calcula les diferències entre les dues mostres
+d <- ds_world$`2008` - ds_world$`2018`
+# n
+length(d)
+# Test de normalitat de les diferències
+shapiro.test(d)
+```
+
+El test Saphiro Wilk indica que les diferències segueixen una distribució
+normal (valor *p* > 0.05).
+
+```{r, include=FALSE}
+# Elimina els objectes temporals
+rm(d)
+```
+
+```{r}
+TEST_PAIRED <- function(x1, x2, alternative = "less") {
+  # Calcula les diferències entre les dues mostres
+  d <- x1 - x2
+  # Calcula la mitjana i desviació estàndard de les diferències
+  mean_d <- mean(d)
+  sd_d <- sd(d)
+  n_d <- length(d)
+  # Calcula l'estadístic de contrast t (fórmula 16)
+  t_stat <- mean_d / (sd_d / sqrt(n_d))
+  # Calcula els graus de llibertat
+  df_value <- n_d - 1
+  # Calcula el valor p segons l'alternativa seleccionada
+  if (alternative == "greater") {
+    p_value <- 1 - pt(t_stat, df = df_value)
+  } else if (alternative == "less") {
+    p_value <- pt(t_stat, df = df_value)
+  } else {
+    p_value <- 2 * min(pt(t_stat, df = df_value), 1 - pt(t_stat, df = df_value))
+  }
+  # Retorna els resultats
+  return(list(
+    mean_d = mean_d,
+    t = t_stat,
+    df = df_value,
+    p_value = p_value
+  ))
+}
+```
+
+## Resultats
+
+```{r}
+# Aplica la funció TEST_PAIRED a les dues mostres
+resultats <- TEST_PAIRED(
+  ds_world$`2008`,
+  ds_world$`2018`,
+  alternative = "less"
+)
+resultats
+```
+
+```{r, include=FALSE}
+# Elimina els objectes temporals
+rm(ds_world, resultats, TEST_PAIRED)
+```
+
+## Interpretació
+
+Si comparem els resultats obtinguts amb la funció pròpia i la funció de R,
+observem que són coherents. Per tant, no es pot rebutjar l’hipòtesi nul·la H~0~,
+a més el valor *p* té un valor molt alt, fet que reforça aquesta decisió. 
+
+Per tant els països no han experimentat una reducció significativa de la
+desigualtat econòmica entre els anys 2008 i 2018, com ja es va observar en
+l’anàlisi descriptiva on es veia en els diagrames de caixa dels països del món
+que la mediana era la mateixa per als dos anys i les distribucions eren molt
+similars en ambdós anys, en el cas dels països d’Europa i Amèrica del Nord la
+mediana havia baixat lleugerament i la distribució era pràcticament igual. En
+les taules de resum es pot veure que alguns països la desigualtat ha augmentat i
+en altres ha disminuït, però no hi ha un patró clar de disminució generalitzada.
+
+# Desigualtat segons el tipus de règim
+
+En aquest apartat ens preguntem si la proporció de països amb alts nivells de
+desigualtat és diferent segons el règim. Per això, abordem la següent pregunta
+de recerca:
+
+PR3: La proporció de països amb major desigualtat és diferent entre els països
+amb règim democràtic i els d’autocràtic?
+
+Considerem “major desigualtat” els països amb un índex GINI superior a 40.
+Escolliu una mostra de l’any 2018.
+
+Seguiu els passos que s’indiquen a continuació.
+
+## Preparació de les dades
+
+Creeu una variable en el conjunt de dades “HighInequality”, que prengui el valor
+1 si l’índex GINI és superior a 40 i 0 en cas contrari. Agrupeu els països
+segons si el règim és democràtic o autocràtic. Mostreu una taula que indiqui la
+proporció de països amb alta desigualtat segons el tipus de règim (democràtic o
+autocràtic). Seleccioneu com a mostra l’any 2018.
+
+*Nota:* igual que en els apartats anteriors, treballeu amb un conjunt de dades
+temporal que contingui només les dades necessàries i elimineu els registres que
+continguin valors perduts.
+
+**Resposta:**
+
+\renewcommand{\arraystretch}{2}
+
+```{r}
+# Conjunt de dades temporal amb només les dades de les variables d’interès sense
+# valors NA
+ds_regime <- ds %>%
+  filter(!is.na(GINI), !is.na(Regime), Year == 2018) %>%
+  select(Country, GINI, Regime) %>%
+  mutate(HighInequality = ifelse(GINI > 40, 1, 0))
+# Taula de proporcions de països amb alta desigualtat segons el tipus de règim
+proportions_table <- ds_regime %>%
+  group_by(Regime) %>%
+  summarise(
+    TotalCountries = n(),
+    HighInequalityCountries = sum(HighInequality),
+    ProportionHighInequality = HighInequalityCountries / TotalCountries
+  )
+# Formata la proporció com a percentatge
+proportions_table$ProportionHighInequality <- scales::percent(
+  proportions_table$ProportionHighInequality,
+  accuracy = 1
+)
+# Mostra la taula
+kable(
+  proportions_table,
+  digits = 2,
+  decimal.mark = ",",
+  col.names = c(
+    "Règim",
+    "Nombre total de països",
+    "Nombre de països amb alta desigualtat",
+    "% d'alta desigualtat"
+  ),
+  caption = "Països amb alta desigualtat segons el tipus de règim (2018)"
+) %>%
+  column_spec(1, width = "1.25in") %>%
+  column_spec(2, width = "1.25in") %>%
+  column_spec(3, width = "1.25in") %>%
+  column_spec(4, width = "1.25in") %>%
+  kable_styling(
+    "striped",
+    latex_options = c("striped", "scale_down", "repeat_header"),
+    position = "center",
+    full_width = FALSE
+  )
+```
+
+## Hipòtesis
+
+Escriviu les hipòtesi nul·la i alternativa.
+
+**Resposta:**
+
+- Hipòtesis nul·la (H~0~): $p_1 = p_2$: La proporció de països amb alta
+desigualtat és igual entre els països amb règim democràtic i els d’autocràtic.
+- Hipòtesis alternativa (H~1~): $p_1 \ne p_2$: La proporció de països amb alta
+desigualtat és diferent entre els països amb règim democràtic i els d’autocràtic.
+
+## Test
+
+Quin tipus de test estadístic és apropiat per donar resposta a la pregunta?
+Justifiqueu la vostra elecció.
+
+**Resposta:**
+
+Test bilateral de dues mostres sobre la proporció de països amb alta desigualtat
+segons el tipus de règim.
+
+És un test de comparació de proporcions entre dos grups independents (països amb
+règim democràtic i països amb règim autocràtic). És bilateral perquè l’hipòtesi
+alternativa estableix que les proporcions són diferents.
+
+## Aplicació del test
+
+Useu una llibreria del llenguatge R per aplicar el test seleccionat.
+
+**Resposta:**
+
+```{r}
+x1 <- ds_regime %>%
+  filter(
+    ds_regime$Regime == "Electoral Autocracy" |
+      ds_regime$Regime == "Closed Autocracy"
+  )
+x2 <- ds_regime %>%
+  filter(
+    ds_regime$Regime == "Electoral Democracy" |
+      ds_regime$Regime == "Liberal Democracy"
+  )
+n1 <- nrow(x1)
+n2 <- nrow(x2)
+p1 <- sum(x1$HighInequality) / n1
+p2 <- sum(x2$HighInequality) / n2
+success <- c(p1 * n1, p2 * n2)
+nn <- c(n1, n2)
+prop.test(
+  success, nn,
+  alternative = "two.sided", conf.level = 0.95, correct = FALSE
+)
+```
+
+## Desenvolupament
+
+Desenvolupeu un codi propi que implementi el test que heu escollit i verifiqueu
+que obteniu el mateix resultat.
+
+**Resposta:**
+
+```{r}
+TEST_PROP <- function(x1, x2, alternative = "two.sided") {
+  # Calcula les proporcions
+  n_x1 <- length(x1)
+  n_x2 <- length(x2)
+  p1 <- sum(x1) / n_x1
+  p2 <- sum(x2) / n_x2
+  p_hat <- (n_x1 * p1 + n_x2 * p2) / (n_x1 + n_x2)
+  # Calcula l'estadístic de contrast z (fórmula 17)
+  zobs <- (p1 - p2) / (sqrt(p_hat * (1 - p_hat) * (1 / n_x1 + 1 / n_x2)))
+  if (alternative == "greater") {
+    pvalue <- 1 - pnorm(zobs)
+  } else if (alternative == "less") {
+    pvalue <- pnorm(zobs)
+  } else {
+    pvalue <- 2 * min(pnorm(zobs), 1 - pnorm(zobs))
+  }
+  return(list(
+    p1 = p1,
+    p2 = p2,
+    z_obs = zobs,
+    p_value = pvalue
+  ))
+}
+```
+
+## Resultats
+
+Usant la funció desenvolupada, mostreu els resultats, incloent els valors
+calculats a partir de la mostra, el valor observat, l’estadístic de contrast i
+el valor p.
+
+**Resposta:**
+
+```{r}
+# Aplica la funció TEST_PROP a les dues mostres
+resultats <- TEST_PROP(
+  x1$HighInequality,
+  x2$HighInequality,
+  alternative = "two.sided"
+)
+resultats
+```
+
+```{r, include=FALSE}
+# Elimina els objectes temporals
+rm(ds_regime, x1, x2, n1, n2, p1, p2, success, nn, resultats, TEST_PROP)
+```
+
+## Interpretació
+
+A partir dels resultats anteriors, doneu resposta a la pregunta de recerca
+plantejada.
+
+**Resposta:**
+
+Si comparem els resultats obtinguts amb la funció pròpia i la funció de R,
+observem que són coherents. No hi ha evidència suficient, $p > 0,05$, per
+rebutjar l’hipòtesi nul·la H~0~, per tant, la proporció de països amb alta
+desigualtat no és significativament diferent entre els països amb règim
+democràtic i els d’autocràtic.
+
+# Proporció de països que compleixen l’objectiu de no esgotament de boscos
+
+En aquesta secció ens centrem en l’ODS número 13 (accions per combatre el canvi
+climàtic i el seu impacte). Per a això, ens fixarem en l’índex “Net forest
+depletion”, que es podria traduir com “índex d’esgotament net de boscos”. Aquest
+índex mesura el valor econòmic de la pèrdua de boscos d’un país quan l’extracció
+de fusta supera el creixement natural, expressat com a percentatge del ingrés
+nacional brut, indicant si l’ús forestal és sostenible o no.
+
+Concretament, volem donar resposta a la pregunta:
+
+PR4: La proporció de països que compleixen amb l’objectiu de no esgotament net
+dels boscos és superior al 50%?
+
+Per “no esgotament de boscos” ens referim a l’índex d’esgotament de boscos
+(NY.ADJ.DFOR.GN.ZS) igual o inferior a 0.
+
+Per donar resposta a aquesta pregunta, prendrem les dades de l’any 2018. Seguiu
+els passos que s’indiquen a continuació.
+
+## Anàlisi descriptiva
+
+Mostreu un gràfic de la vostra elecció on es mostri l’índex de pèrdua de boscos
+dels països.
+
+Per fer el codi més descriptiu, podeu canviar el nom de la variable
+NY.ADJ.DFOR.GN.ZS per FOR.
+
+```{r}
+# Canvia el nom de la variable d’índex d’esgotament net de boscos
+ds <- ds %>%
+  rename(FOR = NY.ADJ.DFOR.GN.ZS)
+```
+
+**Resposta:**
+
+```{R}
+# Conjunt de dades temporal amb només les dades de les variables d’interès sense
+# valors NA
+ds_forest <- ds %>%
+  filter(!is.na(FOR), Year == 2018) %>%
+  select(Country, FOR)
+# Mostra un histograma de l’índex d’esgotament net de boscos
+ggplot(ds_forest, aes(x = FOR)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black", alpha = 0.7) +
+  labs(
+    title = "Índex d'esgotament net de boscos (2018)",
+    x = "Índex d'esgotament net de boscos (FOR)",
+    y = "Nombre de països"
+  ) +
+  theme_minimal()
+```
+
+```{r, include=FALSE}
+# Elimina l’objecte temporal ds_forest
+rm(ds_forest)
+```
+
+## Hipòtesis
+
+Escriviu les hipòtesis estadístiques a partir de la pregunta de recerca.
+
+**Resposta:**
+
+- Hipòtesis nul·la (H~0~): $p = 0.5$: La proporció de països que compleixen amb
+l’objectiu de no esgotament net dels boscos és igual al 50%.
+- Hipòtesis alternativa (H~1~): $p > 0.5$: La proporció de països que compleixen amb
+l’objectiu de no esgotament net dels boscos és superior al 50%.
+
+## Test
+
+Quin tipus de test estadístic és apropiat per donar resposta a la pregunta?
+Justifiqueu la vostra elecció.
+
+**Resposta:**
+
+Test unilateral d’una mostra sobre la proporció de països que compleixen amb
+l’objectiu de no esgotament net dels boscos, es a dir aquells països amb un
+índex d’esgotament net de boscos igual o inferior a 0.
+
+En aquest test només hi ha una mostra (els països del món) i es vol comparar la
+proporció observada amb un valor fix (50%) i no amb una altra proporció d'una
+altra població. És unilateral perquè l’hipòtesi alternativa estableix que la
+proporció és superior al 50%.
+
+## Aplicació del test
+
+Feu servir una llibreria de R per aplicar el test seleccionat.
+
+*Nota:* igual que anteriorment, creeu un conjunt de dades que només contingui
+les dades necessàries per a aquesta anàlisi i elimineu els registres amb valors
+perduts.
+
+**Resposta:**
+
+```{r}
+# Conjunt de dades temporal amb només les dades de les variables d’interès sense
+# valors NA
+ds_forest <- ds %>%
+  filter(!is.na(FOR), Year == 2018) %>%
+  select(Country, FOR) %>%
+  mutate(Complies = ifelse(FOR <= 0, 1, 0))
+n <- nrow(ds_forest)
+p_hat <- sum(ds_forest$Complies) / n
+# Aplica el test de proporcions d'una mostra
+prop.test(
+  sum(ds_forest$Complies), n,
+  p = 0.5,
+  alternative = "greater",
+  conf.level = 0.95,
+  correct = FALSE
+)
+```
+
+## Desenvolupament
+
+Desenvolupeu un codi propi que implementi la prova que heu fet servir a
+l’apartat anterior i verifiqueu que obteniu el mateix resultat.
+
+**Resposta:**
+
+```{r}
+TEST_PROP <- function(x, p0, alternative = "greater") {
+  # Calcula la proporció
+  n_x <- length(x)
+  p_hat <- sum(x) / n_x
+  # Calcula l'estadístic de contrast z (fórmula 8)
+  zobs <- (p_hat - p0) / (sqrt(p0 * (1 - p0) / n_x))
+  if (alternative == "greater") {
+    pvalue <- 1 - pnorm(zobs)
+  } else if (alternative == "less") {
+    pvalue <- pnorm(zobs)
+  } else {
+    pvalue <- 2 * min(pnorm(zobs), 1 - pnorm(zobs))
+  }
+  return(list(
+    p_hat = p_hat,
+    z_obs = zobs,
+    p_value = pvalue
+  ))
+}
+```
+## Resultats
+
+Mostreu els resultats del test, incloent el valor obtingut de la mostra, el
+valor observat i el valor p.
+
+**Resposta:**
+
+```{r}
+# Aplica la funció TEST_PROP a la mostra
+resultats <- TEST_PROP(
+  ds_forest$Complies,
+  p0 = 0.5,
+  alternative = "greater"
+)
+resultats
+```
+
+## Interpretació
+
+```{r, include=FALSE}
+# Elimina l’objecte temporal ds_forest
+rm(ds_forest)
+```
+
+A partir dels resultats anteriors, doneu resposta a la pregunta de recerca
+plantejada.
+
+**Resposta:**
+
+Si comparem els resultats obtinguts amb la funció pròpia i la funció de R,
+observem que són coherents. Hi ha evidència suficient, $p < 0,05$, per rebutjar
+l’hipòtesi nul·la H~0~ a favor de l’alternativa, per tant, la proporció de
+països que compleixen amb l’objectiu de no esgotament net dels boscos és
+superior al 50%, com s’esperava amb l'observació de l’histograma, on es pot
+veure que la gran majoria dels països tenen un índex d’esgotament net de boscos
+igual o inferior a 0, superior a la suma dels països amb índexs superiors a 0.
+
+# Conclusions i comunicació dels resultats
+
+Resumiu en una taula els resultats de l’anàlisi. Incloeu en aquesta taula la
+pregunta de recerca, el tipus de test, el valor p obtingut i una breu
+interpretació del resultat.
+
+**Resposta:**
+
+\renewcommand{\arraystretch}{2}
+
+```{r, echo=FALSE}
+# Taula resum dels resultats de l'anàlisi
+results_summary <- data.frame(
+  ResearchQuestion = c(
+    "PR1: L’esperança de vida és més alta als països amb un nivell d’ingressos elevat que a la resta?",
+    "PR2: La desigualtat es redueix en un període de 10 anys?",
+    "PR3: La proporció de països amb major desigualtat és diferent entre els països amb règim democràtic i els d’autocràtic?",
+    "PR4: La proporció de països que compleixen amb l’objectiu de no esgotament net dels boscos és superior al 50%?"
+  ),
+  TestType = c(
+    "Test t de mostres independents (variàncies diferents)",
+    "Test t de mostres aparellades",
+    "Test de dues mostres sobre proporcions",
+    "Test d'una mostra la proporció"
+  ),
+  PValue = c(
+    "p < 0.05",
+    "p > 0.05",
+    "p > 0.05",
+    "p < 0.05"
+  ),
+  Interpretation = c(
+    "L’esperança de vida és més alta als països amb ingressos alts.",
+    "No hi ha evidència suficient per afirmar que la desigualtat s’ha reduït.",
+    "No hi ha diferència significativa en la proporció de països amb alta desigualtat segons el tipus de règim.",
+    "La proporció de països que compleixen amb l’objectiu de no esgotament net dels boscos és superior al 50%."
+  )
+)
+# Mostra la taula resum
+kable(
+  results_summary,
+  digits = 2,
+  decimal.mark = ",",
+  caption = "Resum dels resultats de l'anàlisi estadística",
+  col.names = c(
+    "Pregunta de recerca",
+    "Tipus de test",
+    "Valor p",
+    "Interpretació"
+  )
+) %>%
+  column_spec(1, width = "1.7in") %>%
+  column_spec(2, width = "1.2in") %>%
+  column_spec(3, width = "0.6in") %>%
+  column_spec(4, width = "1.7in") %>%
+  kable_styling(
+    "striped",
+    latex_options = c("striped", "scale_down", "repeat_header"),
+    position = "center",
+    font_size = 10,
+    full_width = FALSE
+  )
+```
