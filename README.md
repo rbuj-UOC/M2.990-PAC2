@@ -15,10 +15,4 @@ To install Pandoc on macOS, use Homebrew:
 brew install pandoc
 ```
 
-## Unzip datasource
-
-To unzip the datasource, run the following command in your terminal:
-
-```shell
-unzip data.zip
-```
+[![CI/CD with Jekyll](https://github.com/rbuj-UOC/M2.990-PAC2/actions/workflows/render-rmarkdown.yaml/badge.svg?branch=main)](https://github.com/rbuj-UOC/M2.990-PAC2/actions/workflows/render-rmarkdown.yaml)
