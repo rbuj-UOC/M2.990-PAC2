@@ -392,42 +392,6 @@ rm(ds_world, ds_region)
 ```
 
 ```{r}
-# Conjunt de dades temporal amb només les dades de les variables d’interès sense
-# valors NA
-ds_world <- ds %>%
-  filter(!is.na(GINI), Year == 2008) %>%
-  select(Country, GINI) %>%
-  arrange(desc(GINI))
-ds_world <- rbind(
-  ds_world %>%
-    slice_head(n = 5),
-  ds_world %>%
-    slice_tail(n = 5)
-)
-# Mostra els cinc paisos amb index GINI més alt i els cinc amb més baix per a
-# l'any 2008 en una sola taula
-kable(
-  ds_world,
-  digits = 2,
-  decimal.mark = ",",
-  caption = "Països del món amb més i menys desigualtat (índex GINI) (2008)"
-) %>%
-  kable_styling(
-    "striped",
-    latex_options = c("striped", "scale_down", "repeat_header"),
-    position = "center",
-    full_width = FALSE
-  ) %>%
-  pack_rows("Països amb més desigualtat", 1, 5) %>%
-  pack_rows("Països amb menys desigualtat", 6, 10)
-```
-
-```{r, include=FALSE}
-# Elimina els objectes temporals
-rm(ds_world, top_5_gini_world, bottom_5_gini_world)
-```
-
-```{r}
 # Conjunt de dades temporal amb només les dades de les variables d’interès
 # sense valors NA per a l’any 2008
 ds_world_2008 <- ds %>%
