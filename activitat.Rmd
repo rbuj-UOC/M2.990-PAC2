@@ -587,8 +587,24 @@ ds_world <- ds %>%
   drop_na()
 # Aplica el test t de mostres aparellades
 t.test(
-  ds_world$`2008`,
   ds_world$`2018`,
+  ds_world$`2008`,
+  alternative = "less",
+  paired = TRUE
+)
+
+ds_region <- ds %>%
+  filter(
+    !is.na(GINI), Year %in% c(2008, 2018),
+    Region == "Europe and Northern America"
+  ) %>%
+  select(Country, GINI, Year) %>%
+  pivot_wider(names_from = Year, values_from = GINI) %>%
+  drop_na()
+# Aplica el test t de mostres aparellades
+t.test(
+  ds_region$`2018`,
+  ds_region$`2008`,
   alternative = "less",
   paired = TRUE
 )
@@ -604,7 +620,7 @@ funcions `qnorm`, `pnorm`, `qt`, `pt`, etc.
 
 ```{r}
 # Calcula les diferències entre les dues mostres
-d <- ds_world$`2008` - ds_world$`2018`
+d <- ds_world$`2018` - ds_world$`2008`
 # n
 length(d)
 # Test de normalitat de les diferències
@@ -652,10 +668,17 @@ TEST_PAIRED <- function(x1, x2, alternative = "less") {
 ## Resultats
 
 ```{r}
-# Aplica la funció TEST_PAIRED a les dues mostres
+# Aplica la funció TEST_PAIRED a les dues mostres (món)
 resultats <- TEST_PAIRED(
-  ds_world$`2008`,
   ds_world$`2018`,
+  ds_world$`2008`,
+  alternative = "less"
+)
+resultats
+# Aplica la funció TEST_PAIRED a les dues mostres (Europa i Amèrica del Nord)
+resultats <- TEST_PAIRED(
+  ds_region$`2018`,
+  ds_region$`2008`,
   alternative = "less"
 )
 resultats
@@ -663,23 +686,14 @@ resultats
 
 ```{r, include=FALSE}
 # Elimina els objectes temporals
-rm(ds_world, resultats, TEST_PAIRED)
+rm(ds_world, ds_region, resultats, TEST_PAIRED)
 ```
 
 ## Interpretació
 
 Si comparem els resultats obtinguts amb la funció pròpia i la funció de R,
-observem que són coherents. Per tant, no es pot rebutjar l’hipòtesi nul·la H~0~,
-a més el valor *p* té un valor molt alt, fet que reforça aquesta decisió. 
-
-Per tant els països no han experimentat una reducció significativa de la
-desigualtat econòmica entre els anys 2008 i 2018, com ja es va observar en
-l’anàlisi descriptiva on es veia en els diagrames de caixa dels països del món
-que la mediana era la mateixa per als dos anys i les distribucions eren molt
-similars en ambdós anys, en el cas dels països d’Europa i Amèrica del Nord la
-mediana havia baixat lleugerament i la distribució era pràcticament igual. En
-les taules de resum es pot veure que alguns països la desigualtat ha augmentat i
-en altres ha disminuït, però no hi ha un patró clar de disminució generalitzada.
+observem que són coherents. Per tant, es pot rebutjar l’hipòtesi nul·la H~0~,
+ja que el valor de *p* és més petit que 0.05. 
 
 # Desigualtat segons el tipus de règim
 
@@ -1085,13 +1099,13 @@ results_summary <- data.frame(
   ),
   PValue = c(
     "p < 0.05",
-    "p > 0.05",
+    "p < 0.05 (món); p > 0.05 (regió)",
     "p > 0.05",
     "p < 0.05"
   ),
   Interpretation = c(
     "L’esperança de vida és més alta als països amb ingressos alts.",
-    "No hi ha evidència suficient per afirmar que la desigualtat s’ha reduït.",
+    "Hi ha una disminució significativa de la desigualtat entre els anys 2008 i 2018 en la majoria dels països del món, però no a la regió d'Europa i Amèrica del Nord.",
     "No hi ha diferència significativa en la proporció de països amb alta desigualtat segons el tipus de règim.",
     "La proporció de països que compleixen amb l’objectiu de no esgotament net dels boscos és superior al 50%."
   )
